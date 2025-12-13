@@ -1,10 +1,49 @@
 import socket
 import logging
+import argparse
 
 logger = logging.basicConfig(level=logging.INFO)
+parser = argparse.ArgumentParser()
+
+class State:
+    def __init__(self):
+        self.args : argparse.Namespace | None  = None
+
+    def manage_arguments(self)->None:
+        parser.add_argument("--text",help="Serve a simple text")
+        self.args = parser.parse_args()
+     
+        
+state = State()
+
+class Client:
+    def __init__(self, client_handle:socket.socket) -> None:
+        self.client_handle = client_handle
+    
+    def process(self) -> None:
+        logging.info("[PROCESSING THE CLIENT]")
+
+        data_in_str  = self.client_handle.recv(1024).decode()
+        # TODO: process the input 
+        self.send_output()
+    
+    def send_output(self)-> None:
+        if state.args.text:
+            logging.info(f"[SENDING A STRING OUTPUT {state.args.text}")
+
+            message = f"HTTP/1.1 200 OK\r\n\r\n{state.args.text}" 
+            self.client_handle.send(message.encode())
+
+    def destroy(self) -> None:
+        logging.info("[DESTROYED A CLIENT]")
+        
+        self.client_handle.close()
+        
 
 
 def main() -> None:
+    state.manage_arguments()
+
     server = socket.socket()
     
     # reuse the port quickly again
@@ -19,11 +58,11 @@ def main() -> None:
 
     c,_ = server.accept()
     logging.info('[ACCEPTED A CLIENT]')
+    
+    client = Client(c)
+    client.process()
+    client.destroy()
 
-    out:bytes = c.recv(1024)
-    print(out.decode())
-
-    c.close()
     server.close()
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ class State:
     def manage_arguments(self)->None:
         parser.add_argument("--text",help="Serve a simple text")
         parser.add_argument("--file",help="Serve a simple file")
+        parser.add_argument("--redirect",help="Redirects to a site")
         self.args = parser.parse_args()
      
         
@@ -33,9 +34,13 @@ class Client:
         return "\r\n".join(lines)
     
     def _string_output(self,arg:str) -> tuple[str,int,str]:
-        return  "text/html; charset=UTF-8", len(arg), arg
-    
-    def _html_output(self,arg:str) -> tuple[str,int,str]:
+        return  200,"Content-Type: text/html; charset=UTF-8", len(arg), arg
+
+    def _redirect_output(self,arg:str) -> tuple[str,int,str]:
+        _header = f"Location: {arg}"
+        return 302,_header,0,""
+        
+    def _html_output(self,arg:str) -> tuple[int,str,int,str]:
         file_path = pathlib.Path(arg)
 
         if file_path.exists():
@@ -51,7 +56,8 @@ class Client:
 
         eval_hash = {
             "text": self._string_output,
-            "file": self._html_output
+            "file": self._html_output,
+            "redirect": self._redirect_output,
         }
 
         if dict_arguments:
@@ -61,10 +67,10 @@ class Client:
                     continue
 
                 logging.info(f"[SENDING A {k.upper()} OUTPUT")
-                _header_type, _len, _body = eval_hash[k](v)
+                _code, _header_type, _len, _body = eval_hash[k](v)
 
-            status = "HTTP/1.1 200 OK"
-            type = f"Content-Type: {_header_type}"
+            status = f"HTTP/1.1 {_code} OK"
+            type = f"{_header_type}"
             content_size = f"Content-Length: {_len}"
             body = _body
 

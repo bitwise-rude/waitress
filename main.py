@@ -29,26 +29,52 @@ class Client:
         # TODO: process the input 
         self.send_output()
     
-    def send_output(self)-> None:
-        if state.args.text:
-            logging.info(f"[SENDING A STRING OUTPUT {state.args.text}")
+    def _combine_response_lines(self,*lines):
+        return "\r\n".join(lines)
+    
+    def _string_output(self,arg:str) -> tuple[str,int,str]:
+        return  "text/html; charset=UTF-8", len(arg), arg
+    
+    def _html_output(self,arg:str) -> tuple[str,int,str]:
+        file_path = pathlib.Path(arg)
 
-            message = f"HTTP/1.1 200 OK\r\n\r\n{state.args.text}" 
-            self.client_handle.send(message.encode())
+        if file_path.exists():
+            message = file_path.read_text()
+        else:
+            logging.error("[FILE NOT FOUND]")
+            message = "FILE NOT FOUND"
         
-        elif state.args.file:
-            logging.info(f"[SENDING A STRING OUTPUT {state.args.text}")
+        return self._string_output(message)
+    
+    def send_output(self)-> None:
+        dict_arguments: dict[str,str] = vars(state.args)
 
-            # read the file
-            file_path = pathlib.Path(state.args.file)
-            if file_path.exists():
-                message = file_path.read_text()
-            else:
-                logging.error("[FILE NOT FOUND]")
-                message = "FILE NOT FOUND"
-            
-            message = f"HTTP/1.1 200 OK\r\n\r\n{message}"
+        eval_hash = {
+            "text": self._string_output,
+            "file": self._html_output
+        }
+
+        if dict_arguments:
+            for k,v in dict_arguments.items():
+
+                if v == None:
+                    continue
+
+                logging.info(f"[SENDING A {k.upper()} OUTPUT")
+                _header_type, _len, _body = eval_hash[k](v)
+
+            status = "HTTP/1.1 200 OK"
+            type = f"Content-Type: {_header_type}"
+            content_size = f"Content-Length: {_len}"
+            body = _body
+
+            message = self._combine_response_lines(status,type,
+                                                str(content_size),
+                                                "",  # since HTTP expects a empty line before body
+                                                body)
+            print(message.encode())
             self.client_handle.send(message.encode())
+
 
 
     def destroy(self) -> None:

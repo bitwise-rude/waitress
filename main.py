@@ -1,5 +1,6 @@
 import socket
 import logging
+import pathlib
 import argparse
 
 logger = logging.basicConfig(level=logging.INFO)
@@ -11,6 +12,7 @@ class State:
 
     def manage_arguments(self)->None:
         parser.add_argument("--text",help="Serve a simple text")
+        parser.add_argument("--file",help="Serve a simple file")
         self.args = parser.parse_args()
      
         
@@ -33,6 +35,21 @@ class Client:
 
             message = f"HTTP/1.1 200 OK\r\n\r\n{state.args.text}" 
             self.client_handle.send(message.encode())
+        
+        elif state.args.file:
+            logging.info(f"[SENDING A STRING OUTPUT {state.args.text}")
+
+            # read the file
+            file_path = pathlib.Path(state.args.file)
+            if file_path.exists():
+                message = file_path.read_text()
+            else:
+                logging.error("[FILE NOT FOUND]")
+                message = "FILE NOT FOUND"
+            
+            message = f"HTTP/1.1 200 OK\r\n\r\n{message}"
+            self.client_handle.send(message.encode())
+
 
     def destroy(self) -> None:
         logging.info("[DESTROYED A CLIENT]")

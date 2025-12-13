@@ -13,7 +13,8 @@ class State:
     def manage_arguments(self)->None:
         parser.add_argument("--text",help="Serve a simple text")
         parser.add_argument("--file",help="Serve a simple file")
-        parser.add_argument("--redirect",help="Redirects to a site")
+        parser.add_argument("--redirect",help="Redirect to a site")
+        parser.add_argument("--json",help="Serve a json file")
         self.args = parser.parse_args()
      
         
@@ -51,6 +52,19 @@ class Client:
         
         return self._string_output(message)
     
+    def _json_output(self,arg:str) -> tuple[int,str,int,str]:
+        file_path = pathlib.Path(arg)
+
+        if file_path.exists():
+            message = file_path.read_text()
+        else:
+            logging.error("[FILE NOT FOUND]")
+            message = "FILE NOT FOUND"
+        
+        return 302,"Content-Type: application/json",len(message),message
+
+
+    
     def send_output(self)-> None:
         dict_arguments: dict[str,str] = vars(state.args)
 
@@ -58,6 +72,7 @@ class Client:
             "text": self._string_output,
             "file": self._html_output,
             "redirect": self._redirect_output,
+            "json": self._json_output
         }
 
         if dict_arguments:

@@ -41,11 +41,19 @@ class Client:
         _header = f"Location: {arg}"
         return 302,_header,0,""
         
-    def _html_output(self,arg:str) -> tuple[int,str,int,str]:
+    def _file_output(self,arg:str) -> tuple[int,str,int,str]:
         file_path = pathlib.Path(arg)
 
         if file_path.exists():
-            message = file_path.read_text()
+            _file_ext = file_path.suffix
+
+            if _file_ext == "html":
+                message = file_path.read_text()
+            elif _file_ext == "jpg" or _file_ext == "jpeg":
+                message = file_path.read_bytes()
+            else:
+                logging.error("[UNKNOWN FILE FORMAT DETECTED]")
+                message = "UNKNOWN FILE"
         else:
             logging.error("[FILE NOT FOUND]")
             message = "FILE NOT FOUND"
@@ -70,7 +78,7 @@ class Client:
 
         eval_hash = {
             "text": self._string_output,
-            "file": self._html_output,
+            "file": self._file_output,
             "redirect": self._redirect_output,
             "json": self._json_output
         }

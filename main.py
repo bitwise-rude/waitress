@@ -7,6 +7,21 @@ from dataclasses import dataclass
 logger = logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser()
 
+#====================
+MIME_MAPPINGS = {
+    ".html" : "text/html",
+    ".css": "text/css",
+    ".js": "application/javascript",
+    ".png": "image/png",
+    ".jpg": "image/jpg",
+    ".jpeg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".json": "application/json"
+}
+#====================
+
+
+    
 class State:
     def __init__(self):
         self.args : argparse.Namespace | None  = None
@@ -44,26 +59,24 @@ class Client:
         return "\r\n".join(lines)
     
     def _string_output(self,arg:str) -> ServiceResponse:
-        return  ServiceResponse(200,"Content-Type: text/html; charset=UTF-8", len(arg), arg)
+        return  ServiceResponse(200,f"Content-Type: text/html; charset=UTF-8", len(arg), arg)
 
     def _redirect_output(self,arg:str) -> ServiceResponse:
         _header = f"Location: {arg}"
         return ServiceResponse(302,_header,0,"")
         
     def _file_output(self,arg:str) -> ServiceResponse:
+        # mime types
         file_path = pathlib.Path(arg)
 
         if file_path.exists():
             _file_ext = file_path.suffix
+            corresponding_mime_type = MIME_MAPPINGS.get(_file_ext)
         
-            if _file_ext == ".html":
-                message = file_path.read_text()
-            # mime types
-            
-            elif _file_ext == ".jpg" or _file_ext == ".jpeg":
+            if corresponding_mime_type:
                 message = file_path.read_bytes()
-                return ServiceResponse(200,"Content-Type: image/png",len(message),message)
-
+                return ServiceResponse(200,f"Content-Type: {corresponding_mime_type}",len(message),message)
+        
             else:
                 logging.error("[UNKNOWN FILE FORMAT DETECTED]")
                 message = "UNKNOWN FILE"
@@ -73,19 +86,7 @@ class Client:
         
         return self._string_output(message)
     
-    def _json_output(self,arg:str) -> ServiceResponse:
-        file_path = pathlib.Path(arg)
 
-        if file_path.exists():
-            message = file_path.read_text()
-        else:
-            logging.error("[FILE NOT FOUND]")
-            message = "FILE NOT FOUND"
-        
-        return ServiceResponse(302,"Content-Type: application/json",len(message),message)
-
-
-    
     def send_output(self)-> None:
         dict_arguments: dict[str,str] = vars(state.args)
 
@@ -93,7 +94,6 @@ class Client:
             "text": self._string_output,
             "file": self._file_output,
             "redirect": self._redirect_output,
-            "json": self._json_output
         }
 
         if dict_arguments:

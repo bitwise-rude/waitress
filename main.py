@@ -23,7 +23,7 @@ class ServiceResponse:
     _code : str
     _header_type : str
     _len : int
-    _body : str
+    _body : str | bytes
     
      
         
@@ -55,11 +55,15 @@ class Client:
 
         if file_path.exists():
             _file_ext = file_path.suffix
-
-            if _file_ext == "html":
+        
+            if _file_ext == ".html":
                 message = file_path.read_text()
-            elif _file_ext == "jpg" or _file_ext == "jpeg":
+            # mime types
+            
+            elif _file_ext == ".jpg" or _file_ext == ".jpeg":
                 message = file_path.read_bytes()
+                return ServiceResponse(200,"Content-Type: image/png",len(message),message)
+
             else:
                 logging.error("[UNKNOWN FILE FORMAT DETECTED]")
                 message = "UNKNOWN FILE"
@@ -69,7 +73,7 @@ class Client:
         
         return self._string_output(message)
     
-    def _json_output(self,arg:str) -> tuple[int,str,int,str]:
+    def _json_output(self,arg:str) -> ServiceResponse:
         file_path = pathlib.Path(arg)
 
         if file_path.exists():
@@ -109,9 +113,10 @@ class Client:
             message = self._combine_response_lines(status,type,
                                                 str(content_size),
                                                 "",  # since HTTP expects a empty line before body
-                                                body)
-            print(message.encode())
-            self.client_handle.send(message.encode())
+                                                body if isinstance(body,str) else "") # since it could be both
+            
+            _encoded_msg= message.encode() + (body if isinstance(body,bytes) else b'')
+            self.client_handle.send(_encoded_msg)
 
 
 

@@ -30,15 +30,16 @@ class State:
         parser.add_argument("--text",help="Serve a simple text")
         parser.add_argument("--file",help="Serve a simple file")
         parser.add_argument("--redirect",help="Redirect to a site")
-        parser.add_argument("--json",help="Serve a json file")
+        parser.add_argument("--download",action="store_true",help="Redirect to a site")
+
         self.args = parser.parse_args()
 
 @dataclass
 class ServiceResponse:
-    _code : str
-    _header_type : str
-    _len : int
-    _body : str | bytes
+    code : str
+    header_type : str
+    len : int
+    body : bytes
     
      
         
@@ -59,11 +60,11 @@ class Client:
         return "\r\n".join(lines)
     
     def _string_output(self,arg:str) -> ServiceResponse:
-        return  ServiceResponse(200,f"Content-Type: text/html; charset=UTF-8", len(arg), arg)
+        return  ServiceResponse(200,f"Content-Type: text/html; charset=UTF-8", len(arg), arg.encode())
 
     def _redirect_output(self,arg:str) -> ServiceResponse:
         _header = f"Location: {arg}"
-        return ServiceResponse(302,_header,0,"")
+        return ServiceResponse(302,_header,0,b"")
         
     def _file_output(self,arg:str) -> ServiceResponse:
         # mime types
@@ -97,26 +98,38 @@ class Client:
         }
 
         if dict_arguments:
-            for k,v in dict_arguments.items():
+            messages: list[ServiceResponse] = [] # at the end will have all the bytes as member
 
+            for k,v in dict_arguments.items():
                 if v == None:
                     continue
+                service = eval_hash.get(k)
+                if service:
+                    messages.append(service(v))
+                    break
 
-                logging.info(f"[SENDING A {k.upper()} OUTPUT")
-                service_response  = eval_hash[k](v)
+                else:
+                    print("NOT COOL")
+                    quit()
+            # now send
+            if messages:
 
-            status = f"HTTP/1.1 {service_response._code} OK"
-            type = f"{service_response._header_type}"
-            content_size = f"Content-Length: {service_response._len}"
-            body = service_response._body
+                _code_response = f"HTTP/1.1 {messages[0].code} OK"
+                _length_response = f"Content-Length: {messages[0].len}"
+                _body_response = messages[0].body
 
-            message = self._combine_response_lines(status,type,
-                                                str(content_size),
-                                                "",  # since HTTP expects a empty line before body
-                                                body if isinstance(body,str) else "") # since it could be both
-            
-            _encoded_msg= message.encode() + (body if isinstance(body,bytes) else b'')
-            self.client_handle.send(_encoded_msg)
+                message = self._combine_response_lines(_code_response,
+                                                        _length_response,
+                                                        "",  # since HTTP expects a empty line before body
+                                                        "") # for body in bytes
+                encoded_message = message.encode() + _body_response
+                self.client_handle.send(encoded_message)
+
+            # if dict_arguments.get("download"):
+            #         messages[-1].header_type = 'application/octet-stream\nContent-Disposition: attachment; filename="file.bin"'
+
+
+
 
 
 

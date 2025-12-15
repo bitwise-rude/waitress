@@ -2,6 +2,7 @@ import socket
 import logging
 import pathlib
 import argparse
+from dataclasses import dataclass
 
 logger = logging.basicConfig(level=logging.INFO)
 parser = argparse.ArgumentParser()
@@ -16,6 +17,14 @@ class State:
         parser.add_argument("--redirect",help="Redirect to a site")
         parser.add_argument("--json",help="Serve a json file")
         self.args = parser.parse_args()
+
+@dataclass
+class ServiceResponse:
+    _code : str
+    _header_type : str
+    _len : int
+    _body : str
+    
      
         
 state = State()
@@ -34,14 +43,14 @@ class Client:
     def _combine_response_lines(self,*lines):
         return "\r\n".join(lines)
     
-    def _string_output(self,arg:str) -> tuple[str,int,str]:
-        return  200,"Content-Type: text/html; charset=UTF-8", len(arg), arg
+    def _string_output(self,arg:str) -> ServiceResponse:
+        return  ServiceResponse(200,"Content-Type: text/html; charset=UTF-8", len(arg), arg)
 
-    def _redirect_output(self,arg:str) -> tuple[str,int,str]:
+    def _redirect_output(self,arg:str) -> ServiceResponse:
         _header = f"Location: {arg}"
-        return 302,_header,0,""
+        return ServiceResponse(302,_header,0,"")
         
-    def _file_output(self,arg:str) -> tuple[int,str,int,str]:
+    def _file_output(self,arg:str) -> ServiceResponse:
         file_path = pathlib.Path(arg)
 
         if file_path.exists():
@@ -69,7 +78,7 @@ class Client:
             logging.error("[FILE NOT FOUND]")
             message = "FILE NOT FOUND"
         
-        return 302,"Content-Type: application/json",len(message),message
+        return ServiceResponse(302,"Content-Type: application/json",len(message),message)
 
 
     
@@ -90,12 +99,12 @@ class Client:
                     continue
 
                 logging.info(f"[SENDING A {k.upper()} OUTPUT")
-                _code, _header_type, _len, _body = eval_hash[k](v)
+                service_response  = eval_hash[k](v)
 
-            status = f"HTTP/1.1 {_code} OK"
-            type = f"{_header_type}"
-            content_size = f"Content-Length: {_len}"
-            body = _body
+            status = f"HTTP/1.1 {service_response._code} OK"
+            type = f"{service_response._header_type}"
+            content_size = f"Content-Length: {service_response._len}"
+            body = service_response._body
 
             message = self._combine_response_lines(status,type,
                                                 str(content_size),

@@ -24,7 +24,7 @@ MIME_MAPPINGS = {
     
 class State:
     def __init__(self):
-        self.args : argparse.Namespace | None  = None
+        self.dict_arguments: dict[str,str] = None
 
     def manage_arguments(self)->None:
         parser.add_argument("--text",help="Serve a simple text")
@@ -32,7 +32,7 @@ class State:
         parser.add_argument("--redirect",help="Redirect to a site")
         parser.add_argument("--download",action="store_true",help="Redirect to a site")
 
-        self.args = parser.parse_args()
+        self.dict_arguments = vars(parser.parse_args())
 
 @dataclass
 class ServiceResponse:
@@ -76,7 +76,14 @@ class Client:
         
             if corresponding_mime_type:
                 message = file_path.read_bytes()
-                return ServiceResponse(200,f"Content-Type: {corresponding_mime_type}",len(message),message)
+                sr = ServiceResponse(200,f"Content-Type: {corresponding_mime_type}",len(message),message)
+
+                # if wanna download
+                if state.dict_arguments.get("download"):
+                    sr.header_type = 'Content-Type: application/octet-stream\r\nContent-Disposition: attachment; filename='+f'"{file_path.name}"'
+    
+                
+                return sr
         
             else:
                 logging.error("[UNKNOWN FILE FORMAT DETECTED]")
@@ -85,11 +92,13 @@ class Client:
             logging.error("[FILE NOT FOUND]")
             message = "FILE NOT FOUND"
         
+
+        
         return self._string_output(message)
     
 
     def send_output(self)-> None:
-        dict_arguments: dict[str,str] = vars(state.args)
+        
 
         eval_hash = {
             "text": self._string_output,
@@ -97,10 +106,10 @@ class Client:
             "redirect": self._redirect_output,
         }
 
-        if dict_arguments:
+        if state.dict_arguments:
             messages: list[ServiceResponse] = [] # at the end will have all the bytes as member
 
-            for k,v in dict_arguments.items():
+            for k,v in state.dict_arguments.items():
                 if v == None:
                     continue
                 service = eval_hash.get(k)
@@ -115,23 +124,18 @@ class Client:
             if messages:
 
                 _code_response = f"HTTP/1.1 {messages[0].code} OK"
+                _header_resposne = messages[0].header_type
                 _length_response = f"Content-Length: {messages[0].len}"
                 _body_response = messages[0].body
 
                 message = self._combine_response_lines(_code_response,
+                                                       _header_resposne,
                                                         _length_response,
                                                         "",  # since HTTP expects a empty line before body
                                                         "") # for body in bytes
                 encoded_message = message.encode() + _body_response
                 self.client_handle.send(encoded_message)
-
-            # if dict_arguments.get("download"):
-            #         messages[-1].header_type = 'application/octet-stream\nContent-Disposition: attachment; filename="file.bin"'
-
-
-
-
-
+                print(encoded_message[0:50])
 
     def destroy(self) -> None:
         logging.info("[DESTROYED A CLIENT]")

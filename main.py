@@ -16,10 +16,10 @@ MIME_MAPPINGS = {
     ".jpg": "image/jpg",
     ".jpeg": "image/jpeg",
     ".svg": "image/svg+xml",
-    ".json": "application/json"
+    ".json": "application/json",
+    ".wav" : "audio/wav"
 }
 #====================
-
 
     
 class State:
@@ -135,7 +135,7 @@ class Client:
                                                         "") # for body in bytes
                 encoded_message = message.encode() + _body_response
                 self.client_handle.send(encoded_message)
-                print(encoded_message[0:50])
+                print(encoded_message[0:100])
 
     def destroy(self) -> None:
         logging.info("[DESTROYED A CLIENT]")

@@ -13,7 +13,7 @@ MIME_MAPPINGS = {
     ".css": "text/css",
     ".js": "application/javascript",
     ".png": "image/png",
-    ".jpg": "image/jpg",
+    ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".svg": "image/svg+xml",
     ".json": "application/json",
@@ -146,7 +146,7 @@ class Client:
                                                            _header_resposne,
                                                            "",
                                                            "")
-                    encoded_message = message.encode() + _body_response
+                    encoded_message = message.encode()
                     self.client_handle.send(encoded_message)
 
                     _chunk = 2048
@@ -155,11 +155,12 @@ class Client:
                     while _sent < len(_body_response):
                         to_send = hex(_chunk)[2:].encode() + b"\r\n"
 
-                        to_send += encoded_message[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else encoded_message[_sent:(len(_body_response) - _sent)]
+                        to_send += _body_response[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else _body_response[_sent:(len(_body_response) - _sent)]
                         _sent += _chunk
 
                         to_send += b"\r\n"
                         self.client_handle.send(to_send)
+                        print(to_send)
                         print("SENDING",len(_body_response),_sent)
                     
                 

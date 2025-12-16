@@ -153,15 +153,17 @@ class Client:
                     _sent = 0
 
                     while _sent < len(_body_response):
-                        to_send = hex(_chunk)[2:].encode() + b"\r\n"
+                        _size = _chunk if _sent + _chunk < len(_body_response) else len(_body_response) - _sent
+                        to_send = hex(_size)[2:].encode() + b"\r\n"
 
-                        to_send += _body_response[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else _body_response[_sent:(len(_body_response) - _sent)]
-                        _sent += _chunk
+                        to_send += _body_response[_sent:_sent + _size]
+                        _sent += _size
 
                         to_send += b"\r\n"
                         self.client_handle.send(to_send)
                         print(to_send)
                         print("SENDING",len(_body_response),_sent)
+                    self.client_handle.send(b'0\r\n\r\n')
                     
                 
 

@@ -31,6 +31,7 @@ class State:
         parser.add_argument("--file",help="Serve a simple file")
         parser.add_argument("--redirect",help="Redirect to a site")
         parser.add_argument("--download",action="store_true",help="Redirect to a site")
+        parser.add_argument("--stream",action="store_true",help="Stream to the browser")
 
         self.dict_arguments = vars(parser.parse_args())
 
@@ -82,7 +83,10 @@ class Client:
                 if state.dict_arguments.get("download"):
                     sr.header_type = 'Content-Type: application/octet-stream\r\nContent-Disposition: attachment; filename='+f'"{file_path.name}"'
     
-                
+                if state.dict_arguments.get("stream"):
+                    sr.header_type += "Transfer-Encoding: chunked"
+                    sr.len = 0 # 0 means its chunked
+
                 return sr
         
             else:
@@ -118,23 +122,48 @@ class Client:
                     break
 
                 else:
-                    print("NOT COOL")
+                    logging.error("[NOT COOL]")
                     quit()
             # now send
-            if messages:
 
+            if messages:
                 _code_response = f"HTTP/1.1 {messages[0].code} OK"
                 _header_resposne = messages[0].header_type
-                _length_response = f"Content-Length: {messages[0].len}"
-                _body_response = messages[0].body
 
-                message = self._combine_response_lines(_code_response,
-                                                       _header_resposne,
-                                                        _length_response,
-                                                        "",  # since HTTP expects a empty line before body
-                                                        "") # for body in bytes
-                encoded_message = message.encode() + _body_response
-                self.client_handle.send(encoded_message)
+                if messages[0] != 0:
+                    _length_response = f"Content-Length: {messages[0].len}"
+                    _body_response = messages[0].body
+
+                    message = self._combine_response_lines(_code_response,
+                                                        _header_resposne,
+                                                            _length_response,
+                                                            "",  # since HTTP expects a empty line before body
+                                                            "") # for body in bytes
+                    encoded_message = message.encode() + _body_response
+                    self.client_handle.send(encoded_message)
+                else:
+                    message = self._combine_response_lines(_code_response,
+                                                           _header_resposne,
+                                                           "",
+                                                           "")
+                    encoded_message = message.encode() + _body_response
+                    self.client_handle.send(encoded_message)
+
+                    _chunk = 2048
+                    _sent = 0
+
+                    while _sent < len(_body_response):
+                        to_send = hex(_chunk)[2:].encode() + "\r\n"
+
+                        to_send += encoded_message[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else encoded_message[_sent:(len(_body_response - _sent))]
+                        _sent += _chunk
+
+                        to_send += b"\r\n"
+                        self.client_handle.send(to_send)
+                        print("SENDING")
+                    
+                
+
                 print(encoded_message[0:100])
 
     def destroy(self) -> None:

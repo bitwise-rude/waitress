@@ -84,7 +84,7 @@ class Client:
                     sr.header_type = 'Content-Type: application/octet-stream\r\nContent-Disposition: attachment; filename='+f'"{file_path.name}"'
     
                 if state.dict_arguments.get("stream"):
-                    sr.header_type += "Transfer-Encoding: chunked"
+                    sr.header_type += "\r\nTransfer-Encoding: chunked"
                     sr.len = 0 # 0 means its chunked
 
                 return sr
@@ -129,10 +129,10 @@ class Client:
             if messages:
                 _code_response = f"HTTP/1.1 {messages[0].code} OK"
                 _header_resposne = messages[0].header_type
+                _body_response = messages[0].body
 
-                if messages[0] != 0:
+                if messages[0].len != 0:
                     _length_response = f"Content-Length: {messages[0].len}"
-                    _body_response = messages[0].body
 
                     message = self._combine_response_lines(_code_response,
                                                         _header_resposne,
@@ -153,14 +153,14 @@ class Client:
                     _sent = 0
 
                     while _sent < len(_body_response):
-                        to_send = hex(_chunk)[2:].encode() + "\r\n"
+                        to_send = hex(_chunk)[2:].encode() + b"\r\n"
 
-                        to_send += encoded_message[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else encoded_message[_sent:(len(_body_response - _sent))]
+                        to_send += encoded_message[_sent:_sent + _chunk] if _sent + _chunk < len(_body_response) else encoded_message[_sent:(len(_body_response) - _sent)]
                         _sent += _chunk
 
                         to_send += b"\r\n"
                         self.client_handle.send(to_send)
-                        print("SENDING")
+                        print("SENDING",len(_body_response),_sent)
                     
                 
 

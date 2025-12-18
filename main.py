@@ -2,6 +2,7 @@ import socket
 import logging
 import pathlib
 import argparse
+import threading
 from dataclasses import dataclass
 
 logger = logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,8 @@ MIME_MAPPINGS = {
     ".wav" : "audio/wav"
 }
 #====================
+
+
 
     
 class State:
@@ -56,6 +59,7 @@ class Client:
         data_in_str  = self.client_handle.recv(1024).decode()
         # TODO: process the input 
         self.send_output()
+        self.destroy()
     
     def _combine_response_lines(self,*lines):
         return "\r\n".join(lines)
@@ -160,7 +164,12 @@ class Client:
                         _sent += _size
 
                         to_send += b"\r\n"
-                        self.client_handle.send(to_send)
+
+                        try:
+                            self.client_handle.send(to_send)
+                        except BrokenPipeError:
+                            logging.error('[PIPE IS BROKEN]')
+                            self.destroy()
                         print(to_send)
                         print("SENDING",len(_body_response),_sent)
                     self.client_handle.send(b'0\r\n\r\n')
@@ -175,6 +184,7 @@ class Client:
         self.client_handle.close()
         
 
+client_list:Client = []
 
 def main() -> None:
     state.manage_arguments()
@@ -191,12 +201,14 @@ def main() -> None:
     server.listen()
     logging.info('[STARTED LISTENING]')
 
-    c,_ = server.accept()
-    logging.info('[ACCEPTED A CLIENT]')
-    
-    client = Client(c)
-    client.process()
-    client.destroy()
+
+    for i in range(3):
+        c,_ = server.accept()
+        logging.info('[ACCEPTED A CLIENT]')
+        client = Client(c)
+        client_list.append(client)
+        threading.Thread(target=client.process).start()
+   
 
     server.close()
 

@@ -18,7 +18,9 @@ MIME_MAPPINGS = {
     ".jpeg": "image/jpeg",
     ".svg": "image/svg+xml",
     ".json": "application/json",
-    ".wav" : "audio/wav"
+    ".wav" : "audio/wav",
+    ".mp4" : "video/mp4"
+    ""
 }
 #====================
 
@@ -57,6 +59,7 @@ class Client:
         logging.info("[PROCESSING THE CLIENT]")
 
         data_in_str  = self.client_handle.recv(1024).decode()
+        print(data_in_str)
         # TODO: process the input 
         self.send_output()
         self.destroy()
@@ -153,7 +156,7 @@ class Client:
                     encoded_message = message.encode()
                     self.client_handle.send(encoded_message)
 
-                    _chunk = 2048
+                    _chunk = 20480000
                     _sent = 0
 
                     while _sent < len(_body_response):
@@ -170,14 +173,11 @@ class Client:
                         except BrokenPipeError:
                             logging.error('[PIPE IS BROKEN]')
                             self.destroy()
-                        print(to_send)
-                        print("SENDING",len(_body_response),_sent)
+                            return
                     self.client_handle.send(b'0\r\n\r\n')
+                    logging.info("[SENT SUCCESFULLY]")
                     
-                
-
-                print(encoded_message[0:100])
-
+    
     def destroy(self) -> None:
         logging.info("[DESTROYED A CLIENT]")
         
@@ -202,7 +202,7 @@ def main() -> None:
     logging.info('[STARTED LISTENING]')
 
 
-    for i in range(3):
+    for i in range(5):
         c,_ = server.accept()
         logging.info('[ACCEPTED A CLIENT]')
         client = Client(c)

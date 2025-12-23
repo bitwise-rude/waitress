@@ -1,3 +1,7 @@
+- do nice recv with error tracking
+- add optimizations and stuff and good things for more robust sending
+- with client identifactinos and stuff
+
 ## waitress
 - An unorthodox web server
 - That does stupid but useful things

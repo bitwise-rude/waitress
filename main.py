@@ -58,48 +58,18 @@ class Client:
         self.client_handle = client_handle
         self.keep_alive = False
     
-    def process_video(self,cam_id:int):
-        logging.info('[STREAMING LIVE CAMERA]')
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("Error: Could not open video source.")
-            exit()
-
-        message = self._combine_response_lines(200,
-                                               "Cache-Control: no-cache\r\nPragma: no-cache\r\nConnection: close\r\nContent-Type: multipart/x-mixed-replace; boundary=frame" ,
-                                                "",
-                                                "")
-        encoded_message = message.encode()
-        self.client_handle.send(encoded_message)
-        logging.info("[CAMERA STREAMING BEGINS]")
-
-        _chunk = 20480000
-        _sent = 0
-
-        while True:
-                        to_send = hex(_size)[2:].encode() + b"\r\n"
-
-                        to_send += _body_response[_sent:_sent + _size]
-                        _sent += _size
-
-                        to_send += b"\r\n"
-
-                        try:
-                            self.client_handle.send(to_send)
-                        except  ConnectionResetError:
-                            logging.error('[CONNECTION IS BROKEN, MAYBE BROWSER WILL REQUEST AGAIN]]')
-                            self.destroy()
-                            self.pending_package = to_send
-                            return
-                    self.client_handle.send(b'0\r\n\r\n')
-                    logging.info("[SENT SUCCESFULLY]")
 
 
     
     def process(self) -> None:
         logging.info("[PROCESSING THE CLIENT]")
 
-        data_in_str  = self.client_handle.recv(1024).decode()
+        try:
+            data_in_str  = self.client_handle.recv(1024).decode()
+        except ConnectionResetError:
+            logging.error("[CONNECTION ABORTED]")
+            self.destroy()
+            return
         print(data_in_str)
         
         if "Connection: keep-alive" in data_in_str: self.keep_alive = True 
@@ -220,6 +190,11 @@ class Client:
 
                         try:
                             self.client_handle.send(to_send)
+                        except BrokenPipeError:
+                            logging.error('[CONNECTION IS BROKEN, MAYBE BROWSER WILL REQUEST AGAIN]]')
+                            self.destroy()
+                            self.pending_package = to_send
+                            return
                         except  ConnectionResetError:
                             logging.error('[CONNECTION IS BROKEN, MAYBE BROWSER WILL REQUEST AGAIN]]')
                             self.destroy()
@@ -257,7 +232,7 @@ def main() -> None:
     logging.info('[STARTED LISTENING]')
 
 
-    for i in range(1):
+    for i in range(5):
         c,_ = server.accept()
         logging.info('[ACCEPTED A CLIENT]')
         client = Client(c)
